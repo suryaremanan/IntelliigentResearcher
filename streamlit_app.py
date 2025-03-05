@@ -1,5 +1,9 @@
 import streamlit as st
 import requests
+import os
+
+# Get backend URL from environment variable or use default
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 st.title("Research Paper Section Generator (Chat Mode)")
 
@@ -20,14 +24,17 @@ if submitted:
                 ("pdf_files", (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type))
             )
     
-    response = requests.post("http://localhost:8000/chat", data=data, files=files)
-    if response.status_code == 200:
-        result = response.json()
-        if "generated_text" in result:
-            st.subheader(f"Generated '{message}' Section:")
-            st.write(result["generated_text"])
+    try:
+        response = requests.post(f"{BACKEND_URL}/chat", data=data, files=files)
+        if response.status_code == 200:
+            result = response.json()
+            if "generated_text" in result:
+                st.subheader(f"Generated '{message}' Section:")
+                st.write(result["generated_text"])
+            else:
+                st.error(result.get("error", "Unknown error occurred."))
         else:
-            st.error(result.get("error", "Unknown error occurred."))
-    else:
-        st.error("Error generating section. Please check the backend logs.")
+            st.error(f"Error: Status code {response.status_code}")
+    except Exception as e:
+        st.error(f"Error connecting to backend: {str(e)}")
 
