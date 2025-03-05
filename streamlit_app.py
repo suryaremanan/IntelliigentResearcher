@@ -27,15 +27,15 @@ def extract_text_from_pdf(file_bytes):
 
 # Function to generate text using Hugging Face API
 def generate_section(topic, section, pdf_text=None, max_length=512):
-    # API endpoint - using Llama-3.2-8B-Instruct (or any available model)
-    API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-8B-Instruct"
+    # Using a publicly available model instead of Llama which requires special access
+    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
     
     headers = {
         "Authorization": f"Bearer {hf_api_token}",
         "Content-Type": "application/json"
     }
     
-    # Build the prompt
+    # Build the prompt with proper instruction format for Mistral
     if pdf_text:
         # Truncate PDF text to avoid exceeding token limits
         max_pdf_chars = 30000
@@ -43,16 +43,15 @@ def generate_section(topic, section, pdf_text=None, max_length=512):
         if len(pdf_text) > max_pdf_chars:
             truncated_pdf += "... [content truncated due to length]"
             
-        prompt = (
-            f"Generate the '{section}' section for a research paper on the topic: '{topic}'. "
-            f"Base your response on the following research paper excerpts:\n\n"
-            f"{truncated_pdf}"
-        )
+        prompt = f"""<s>[INST] Using the following research paper excerpts:
+
+{truncated_pdf}
+
+Generate the '{section}' section for a research paper on the topic: '{topic}'.
+Include comprehensive details and follow academic style. [/INST]</s>"""
     else:
-        prompt = (
-            f"Generate the '{section}' section for a research paper on the topic: '{topic}'. "
-            "Include comprehensive details and follow academic style."
-        )
+        prompt = f"""<s>[INST] Generate the '{section}' section for a research paper on the topic: '{topic}'.
+Include comprehensive details and follow academic style. [/INST]</s>"""
     
     # Request payload
     payload = {
@@ -79,7 +78,22 @@ def generate_section(topic, section, pdf_text=None, max_length=512):
             return result.get('generated_text', 'No text generated')
             
     except Exception as e:
-        return f"Error generating text: {str(e)}"
+        # Try a backup model if the first one fails
+        try:
+            st.warning("First model attempt failed, trying backup model...")
+            # Backup with a smaller, more reliable model
+            backup_url = "https://api-inference.huggingface.co/models/google/flan-t5-xl"
+            response = requests.post(backup_url, headers=headers, json=payload)
+            response.raise_for_status()
+            
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                return result[0].get('generated_text', '')
+            
+            return result.get('generated_text', 'No text generated')
+            
+        except Exception as e2:
+            return f"Error generating text: {str(e)}. Backup also failed: {str(e2)}"
 
 # Main app interface
 st.markdown("Upload your PDF research papers and specify the research topic. Then type the section you want (e.g., 'intro', 'methodology', etc.) in the chatbox.")
