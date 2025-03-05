@@ -5,6 +5,10 @@ import os
 # Get backend URL from environment variable or use default
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
+# If you need to use the HF token directly in the Streamlit app
+# (not needed if only your backend uses it)
+hf_token = st.secrets.get("HF_API_TOKEN", None)
+
 st.title("Research Paper Section Generator (Chat Mode)")
 
 st.markdown("Upload your PDF research papers and specify the research topic. Then type the section you want (e.g., 'intro', 'methodology', etc.) in the chatbox.")
